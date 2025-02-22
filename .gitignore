@@ -1,6 +1,6 @@
 #video files
-.AVI
-.mp4
+*.AVI
+*.mp4
 
 
 # Byte-compiled / optimized / DLL files
