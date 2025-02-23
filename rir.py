@@ -32,6 +32,7 @@ while cap.isOpened():
     if results.pose_landmarks:
         for landmark in results.pose_landmarks.landmark:
             h, w, _ = frame.shape
+            # Normalize mediapipes fractional coordinates realtive to width and height(0-1) into pixel coordinates for opencv
             x, y = int(landmark.x * w), int(landmark.y * h)
             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
