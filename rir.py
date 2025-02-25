@@ -1,12 +1,13 @@
 import cv2
 import mediapipe as mp
+import time
 
 # Initialize MediaPipe Pose
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
 
 # Open video file (change filename if needed)
-video_path = "/home/tonyzalez/Projects_learning/projects/squat_RIR/DSCF0415.AVI"
+video_path = "squat.mp4"
 cap = cv2.VideoCapture(video_path)
 
 # Get video properties (width, height, FPS)
@@ -18,6 +19,15 @@ fps = int(cap.get(cv2.CAP_PROP_FPS))
 output_path = "squat_output.mp4"
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for MP4 format
 out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+
+rep_count = 0
+squat_down = False
+initial_velocity = None
+prev_hip_y = None
+prev_time = None
+velocity_list = []
+velocity = 0
+
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -43,10 +53,37 @@ while cap.isOpened():
         # Convert normalized coordinates to pixel values
         hip_y = int(hip.y * h)
         knee_y = int(knee.y * h)
+        
+         # **Step 1: Calculate Rep Velocity**
+        current_time = time.time()  # Get current timestamp
+
+        if prev_hip_y is not None and prev_time is not None:
+            time_elapsed = current_time - prev_time
+            velocity = (prev_hip_y - hip_y) / time_elapsed  # Pixels per second
+            
+            # Store the first velocity as baseline
+            if initial_velocity is None:
+                initial_velocity = velocity
+            
+            # Track velocity drop (for RIR estimation)
+            velocity_list.append(velocity)
+
+       # **Step 2: Detect Squat Phases (Up/Down)**
+            if hip_y > knee_y:  # Going down
+                squat_down = True
+            elif squat_down and hip_y < knee_y:  # Going up (rep completed)
+                rep_count += 1
+                squat_down = False
+            
+        # Update previous values for next frame
+        prev_hip_y = hip_y
+        prev_time = current_time
 
         # Display depth information
         cv2.putText(frame, f"Hip Y: {hip_y}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
         cv2.putText(frame, f"Knee Y: {knee_y}", (50, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+        cv2.putText(frame, f"Reps: {rep_count}", (50, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(frame, f"Velocity: {velocity:.2f} px/s", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
     # Show the video frame
     cv2.imshow("Squat Analysis", frame)
